@@ -80,18 +80,38 @@ body{
   margin-top:4px;
 }
 
-#lyrics{
-  position:absolute;
-  left:8%;
-  right:8%;
-  bottom:84px;
-  text-align:center;
-  color:#fff;
-  font-style:italic;
-  font-size:clamp(20px,3vw,34px);
-  line-height:1.2;
-  text-shadow:0 2px 12px rgba(0,0,0,0.8);
-  z-index:3;
+
+
+#lyrics-area{
+position:absolute;
+left:10%;
+right:10%;
+bottom:90px;
+min-height:78px;
+display:flex;
+flex-direction:column;
+justify-content:flex-end;
+align-items:center;
+gap:4px;
+text-align:center;
+z-index:3;
+}
+
+.lyric-line{
+font-style:italic;
+line-height:1.2;
+text-shadow:0 2px 12px rgba(0,0,0,0.8);
+max-width:100%;
+}
+
+.lyric-line.prev{
+color:rgba(255,255,255,0.45);
+font-size:clamp(14px,2.1vw,20px);
+}
+
+.lyric-line.active{
+color:#fff;
+font-size:clamp(18px,3vw,32px);
 }
 
 #controls{
@@ -129,18 +149,28 @@ body{
 }
 
 @media (max-width: 768px){
+  #lyrics-area{
+    left:10%;
+    right:10%;
+    bottom:82px;
+    min-height:72px;
+  }
+
+  .lyric-line.prev{
+    font-size:clamp(12px,3.2vw,16px);
+  }
+
+  .lyric-line.active{
+    font-size:clamp(16px,4.6vw,24px);
+  }
+
+
   #player{
     width:min(100vw, calc(100dvh - 120px), 800px);
     margin:0 auto;
   }
 
-  #lyrics{
-    left:10%;
-    right:10%;
-    bottom:82px;
-    font-size:clamp(18px,4.8vw,28px);
-  }
-
+  
   #controls{
     padding:14px 12px;
     gap:10px;
@@ -156,6 +186,70 @@ body{
     width:56px;
   }
 }
+
+#seek {
+  --progress: 0%;
+  -webkit-appearance: none;
+  appearance: none;
+  height: 6px;
+  border-radius: 999px;
+  outline: none;
+  background: linear-gradient(
+    to right,
+    rgba(255,160,170,0.92) 0%,
+    rgba(255,160,170,0.92) var(--progress),
+    rgba(255,255,255,0.25) var(--progress),
+    rgba(255,255,255,0.25) 100%
+  );
+}
+
+#seek::-webkit-slider-runnable-track {
+  height: 6px;
+  border-radius: 999px;
+  background: linear-gradient(
+    to right,
+    rgba(255,160,170,0.92) 0%,
+    rgba(255,160,170,0.92) var(--progress),
+    rgba(255,255,255,0.25) var(--progress),
+    rgba(255,255,255,0.25) 100%
+  );
+}
+
+#seek::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  border: 1px solid rgba(255,255,255,0.18);
+  background: rgba(255,160,170,0.98);
+  box-shadow: 0 0 0 3px rgba(0,0,0,0.18);
+  margin-top: -4px;
+  cursor: pointer;
+}
+
+#seek::-moz-range-track {
+  height: 6px;
+  border-radius: 999px;
+  background: rgba(255,255,255,0.25);
+}
+
+#seek::-moz-range-progress {
+  height: 6px;
+  border-radius: 999px;
+  background: rgba(255,160,170,0.92);
+}
+
+#seek::-moz-range-thumb {
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  border: 1px solid rgba(255,255,255,0.18);
+  background: rgba(255,160,170,0.98);
+  box-shadow: 0 0 0 3px rgba(0,0,0,0.18);
+  cursor: pointer;
+}
+
 </style>
 </head>
 
@@ -173,7 +267,10 @@ body{
 <div id="song-artist">Noah Kai</div>
 </div>
 
-<div id="lyrics"></div>
+<div id="lyrics-area">
+  <div class="lyric-line prev" id="prev-line"></div>
+  <div class="lyric-line active" id="curr-line"></div>
+</div>
 
 <div id="controls">
 <button id="playBtn">▶</button>
@@ -236,7 +333,8 @@ const audio=document.getElementById("audio");
 const playBtn=document.getElementById("playBtn");
 const seek=document.getElementById("seek");
 const time=document.getElementById("time");
-const lyricBox=document.getElementById("lyrics");
+const currLine=document.getElementById("curr-line");
+const prevLine=document.getElementById("prev-line");
 
 function formatTime(t){
   const m=Math.floor(t/60);
@@ -274,6 +372,7 @@ document.getElementById("player").onclick=e=>{
 
 audio.addEventListener("timeupdate",()=>{
   seek.value=(audio.currentTime/audio.duration)*100||0;
+seek.style.setProperty("--progress", seek.value + "%");
   time.innerText=formatTime(audio.currentTime);
 
   let idx=-1;
@@ -287,9 +386,18 @@ audio.addEventListener("timeupdate",()=>{
   }
 
   if(idx>=0){
-    lyricBox.innerText=lyrics[idx][1];
+    currLine.innerText=lyrics[idx][1];
+    let prev="";
+    for(let j=idx-1;j>=0;j--){
+      if(lyrics[j][1] && lyrics[j][1].trim()!==""){
+        prev=lyrics[j][1];
+        break;
+      }
+    }
+    prevLine.innerText=prev;
   } else {
-    lyricBox.innerText="";
+    currLine.innerText="";
+    prevLine.innerText="";
   }
 });
 
@@ -300,6 +408,78 @@ seek.addEventListener("input",()=>{
 audio.addEventListener("ended",()=>{
   playBtn.innerText="▶";
 });
+
+// Auto-extract dominant color from cover and tint progress bar + cursor
+window.addEventListener("load", () => {
+  const img = document.getElementById("cover");
+  const seek = document.getElementById("seek");
+  if(!img || !seek) return;
+
+  const canvas = document.createElement("canvas");
+  const ctx = canvas.getContext("2d");
+
+  const sample = () => {
+    canvas.width = 40;
+    canvas.height = 40;
+    ctx.drawImage(img,0,0,40,40);
+    const data = ctx.getImageData(0,0,40,40).data;
+
+    let r=0,g=0,b=0,count=0;
+
+    for(let i=0;i<data.length;i+=4){
+      r+=data[i];
+      g+=data[i+1];
+      b+=data[i+2];
+      count++;
+    }
+
+    r=Math.round(r/count);
+    g=Math.round(g/count);
+    b=Math.round(b/count);
+
+    const thumb = `rgba(${r},${g},${b},0.95)`;
+    const fill = `rgba(${r},${g},${b},0.85)`;
+    const track = `rgba(${r},${g},${b},0.30)`;
+
+    const style = document.createElement("style");
+    style.innerHTML = `
+#seek{
+  background: linear-gradient(
+    to right,
+    ${fill} 0%,
+    ${fill} var(--progress),
+    ${track} var(--progress),
+    ${track} 100%
+  );
+}
+
+#seek::-webkit-slider-runnable-track{
+  background: transparent;
+}
+
+#seek::-webkit-slider-thumb{
+  background:${thumb};
+}
+
+#seek::-moz-range-thumb{
+  background:${thumb};
+}
+
+#seek::-moz-range-progress{
+  background:${fill};
+}
+
+#seek::-moz-range-track{
+  background:${track};
+}
+`;
+    document.head.appendChild(style);
+  };
+
+  if(img.complete) sample();
+  else img.onload = sample;
+});
+
 </script>
 
 </body>
