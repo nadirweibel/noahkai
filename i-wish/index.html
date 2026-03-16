@@ -268,6 +268,20 @@ body {
     font-size: 14px;
   }
 }
+
+@media (max-width: 768px) {
+  #lyric { bottom: 24%; font-size: clamp(18px, 5vw, 34px); }
+  #playBtn { width: 56px; height: 56px; }
+  #timeDisplay { font-size: 14px; }
+}
+
+body {
+  background: #000;
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+}
+
 </style>
 </head>
 <body>
@@ -375,6 +389,17 @@ document.addEventListener('keydown', (e) => {
     togglePlay();
   }
 });
+
+document.getElementById('video-container').addEventListener('click', (e) => {
+  if (
+    e.target.id !== 'seekBar' &&
+    e.target.id !== 'playBtn'
+  ) {
+    togglePlay();
+  }
+});
+
+
 </script>
 </body>
 </html>
